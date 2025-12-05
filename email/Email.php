@@ -568,7 +568,7 @@ class Email extends ViewableData {
 
 		Requirements::restore();
 
-		return self::mailer()->sendPlain($to, $from, $subject, $this->body, $this->attachments, $headers);
+		return static::mailer()->sendPlain($to, $from, $subject, $this->body, $this->attachments, $headers);
 	}
 
 	/**
@@ -636,7 +636,7 @@ class Email extends ViewableData {
 
 		Requirements::restore();
 
-		return self::mailer()->sendHTML($to, $from, $subject, $this->body, $this->attachments, $headers,
+        return static::mailer()->sendHTML($to, $from, $subject, $this->body, $this->attachments, $headers,
 			$this->plaintext_body);
 	}
 
