@@ -381,4 +381,9 @@ class MySQLDatabase extends SS_Database {
 			$this->query("ALTER TABLE \"$table\" AUTO_INCREMENT = 1");
 		}
 	}
+
+    public function nullSafeEqualsClause(string $field1, string $field2): string
+    {
+        return "$field1 <=> $field2";
+    }
 }

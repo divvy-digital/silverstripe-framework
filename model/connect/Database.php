@@ -992,4 +992,30 @@ abstract class SS_Database {
 		Deprecation::notice('4.0', 'Use DB::build_sql() instead');
 		return $this->getQueryBuilder()->buildSQL($query, $parameters);
 	}
+
+    /**
+     * Generates a WHERE clause checking if two columns are equal, which
+     * also returns `1` if both values are null.
+     */
+    public function nullSafeEqualsClause(string $field1, string $field2): string
+    {
+        $nullField1 = $this->nullCheckClause($field1, true);
+        $nullField2 = $this->nullCheckClause($field2, true);
+        return "($field1 = $field2 OR ($nullField1 AND $nullField2))";
+    }
+
+    /**
+     * Generates a WHERE clause for null comparison check
+     *
+     * @param string $field Quoted field name
+     * @param bool $isNull Whether to check for NULL or NOT NULL
+     * @return string Non-parameterised null comparison clause
+     */
+    public function nullCheckClause($field, $isNull)
+    {
+        $clause = $isNull
+            ? "%s IS NULL"
+            : "%s IS NOT NULL";
+        return sprintf($clause ?? '', $field);
+    }
 }

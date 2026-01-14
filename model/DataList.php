@@ -1156,4 +1156,94 @@ class DataList extends ViewableData implements SS_List, SS_Filterable, SS_Sortab
 		user_error("Can't alter items in a DataList using array-access", E_USER_ERROR);
 	}
 
+    /**
+     * Return a copy of this list which only includes items where $fieldToFilterBy matches values in $fieldFromOtherList from $list.
+     *
+     * If both fields are ID, the $list dataclass must be in the same class hierarchy as the dataclass in this list
+     *
+     * @param SS_List<DataObject> $list
+     * @param string $fieldToFilterBy The name of the field in $this to filter by
+     * @param string $fieldFromOtherList The name of the field in $list to get filter values from
+     * @return static<T>
+     * @throws InvalidArgumentException
+     */
+    public function filterByList(SS_List $list, string $fieldToFilterBy = 'ID', string $fieldFromOtherList = 'ID')
+    {
+        return $this->filterOrExcludeByList($list, $fieldToFilterBy, $fieldFromOtherList, false);
+    }
+
+    /**
+     * Return a copy of this list which does not include items where $fieldToFilterBy matches values in $fieldFromOtherList from $list.
+     *
+     * If both fields are ID, the $list dataclass must be in the same class hierarchy as the dataclass in this list
+     *
+     * @param SS_List<DataObject> $list
+     * @param string $fieldToFilterBy The name of the field in $this to exclude by
+     * @param string $fieldFromOtherList The name of the field in $list to get exclude values from
+     * @return static<T>
+     * @throws InvalidArgumentException
+     */
+    public function excludeByList(SS_List $list, string $fieldToFilterBy = 'ID', string $fieldFromOtherList = 'ID')
+    {
+        return $this->filterOrExcludeByList($list, $fieldToFilterBy, $fieldFromOtherList, true);
+    }
+
+    /**
+     * Shared logic for filterByList() and excludeByList()
+     */
+    private function filterOrExcludeByList(SS_List $list, string $fieldToFilterBy, string $fieldFromOtherList, bool $isExclude)
+    {
+        $thisDataClass = $this->dataClass();
+        $listDataClass = $this->getDataClassFromList($list);
+        if (
+            $fieldToFilterBy === 'ID'
+            && $fieldFromOtherList === 'ID'
+            && !is_a($thisDataClass, $listDataClass, true)
+            && !is_a($listDataClass, $thisDataClass, true)
+        )
+        {
+            throw new InvalidArgumentException('If both columns are ID, the $list dataclass must be in the same class hierarchy as the dataclass in this list');
+        }
+        // Try to filter/exclude by the list with a subquery for best performance
+        if ($list instanceof DataList)
+        {
+            return $this->alterDataQuery(function (DataQuery $query) use ($list, $fieldToFilterBy, $fieldFromOtherList, $isExclude)
+            {
+                if ($isExclude)
+                {
+                    $query->excludeByQuery($list->dataQuery(), $fieldToFilterBy, $fieldFromOtherList);
+                }
+                else
+                {
+                    $query->filterByQuery($list->dataQuery(), $fieldToFilterBy, $fieldFromOtherList);
+                }
+            });
+        }
+        // Fall back to regular filtering/excluding
+        $columnFromList = $list->columnUnique($fieldFromOtherList);
+        if ($isExclude)
+        {
+            return $this->exclude($fieldToFilterBy, $columnFromList);
+        }
+
+        return $this->filter($fieldToFilterBy, $columnFromList);
+    }
+
+    /**
+     * Get the class of items that the list holds, or null for lists with non-objects
+     */
+    private function getDataClassFromList(SS_List $list)
+    {
+        if ($list->hasMethod('dataClass'))
+        {
+            return $list->dataClass();
+        }
+        // Assume all items in the list have the same class, like ArrayList does.
+        $item = $list->first();
+        if (is_object($item))
+        {
+            return get_class($item);
+        }
+        return null;
+    }
 }
